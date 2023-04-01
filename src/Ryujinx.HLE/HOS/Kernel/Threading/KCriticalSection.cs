@@ -25,13 +25,17 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
 
         public void Leave()
         {
+            // 没有上锁
             if (_recursionCount == 0)
             {
                 return;
             }
 
+            // 退出锁
             if (--_recursionCount == 0)
             {
+                // 调度器调度线程
+                // scheduledCoresMask 的低4位记录了发生线程切换的 core
                 ulong scheduledCoresMask = KScheduler.SelectThreads(_context);
 
                 Monitor.Exit(_lock);
@@ -40,10 +44,12 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 bool isCurrentThreadSchedulable = currentThread != null && currentThread.IsSchedulable;
                 if (isCurrentThreadSchedulable)
                 {
+                    // currentThread可以被4个模拟CPU调度
                     KScheduler.EnableScheduling(_context, scheduledCoresMask);
                 }
                 else
                 {
+                    // 不可调度， 1.要么有 customThreadStart 或者 被设置 _forcedUnschedulable
                     KScheduler.EnableSchedulingFromForeignThread(_context, scheduledCoresMask);
 
                     // If the thread exists but is not schedulable, we still want to suspend
@@ -51,6 +57,8 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                     // even if they are not scheduled on guest cores.
                     if (currentThread != null && !currentThread.IsSchedulable && currentThread.Context.Running)
                     {
+                        // ServerBase loop
+                        // 只有当 SchedulerWaitEvent被Reset之后，才会实际等待Set
                         currentThread.SchedulerWaitEvent.WaitOne();
                     }
                 }

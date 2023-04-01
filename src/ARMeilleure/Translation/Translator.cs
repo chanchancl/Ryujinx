@@ -25,11 +25,11 @@ namespace ARMeilleure.Translation
         private static readonly AddressTable<ulong>.Level[] _levels64Bit =
             new AddressTable<ulong>.Level[]
             {
-                new(31, 17),
-                new(23,  8),
-                new(15,  8),
-                new( 7,  8),
-                new( 2,  5),
+                new(31, 17),    // xxxxxxxxxxxx11111111111111111xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                new(23,  8),    // xxxxxxxxxxxxxxxxxxxxxxxxxxxxx11111111xxxxxxxxxxxxxxxxxxxxxxxxxxx
+                new(15,  8),    // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx11111111xxxxxxxxxxxxxxxxx
+                new( 7,  8),    // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx11111111xxxxxxxx
+                new( 2,  5)     // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx11111xxx
             };
 
         private static readonly AddressTable<ulong>.Level[] _levels32Bit =

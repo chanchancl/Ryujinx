@@ -271,6 +271,7 @@ namespace Ryujinx.Horizon.Kernel.Generators
                 generator.AppendLine($"var {ResultVariableName} = syscall.{method.Identifier.Text}({argsList});");
                 canonicalReturnTypeName = GetCanonicalTypeName(compilation, method.ReturnType);
 
+                // 函数的返回值，一般是 result.ErrorCode
                 if (canonicalReturnTypeName == TypeResult)
                 {
                     generator.AppendLine($"context.SetX({returnRegisterIndex++}, (uint){ResultVariableName}.ErrorCode);");
@@ -294,6 +295,7 @@ namespace Ryujinx.Horizon.Kernel.Generators
 
             foreach (OutParameter outParameter in outParameters)
             {
+                // 依次填实际的返回值，NeedsSplit 表示是64位的返回值，需要分2次分别写入32位的寄存器
                 generator.AppendLine($"context.SetX({returnRegisterIndex++}, (uint){outParameter.Identifier});");
 
                 if (outParameter.NeedsSplit)

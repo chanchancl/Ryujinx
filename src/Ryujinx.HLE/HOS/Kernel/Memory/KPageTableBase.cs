@@ -243,6 +243,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
                     throw new ArgumentException($"AddressSpaceType bigger than {(uint)AddressSpaceType.Addr39Bits}: {(uint)addrSpaceType}", nameof(addrSpaceType));
             }
 
+            // Start = 128MB,  Size = 2MB
             CodeRegionEnd = CodeRegionStart + codeRegionSize;
 
             ulong mapBaseAddress;
@@ -257,12 +258,14 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
             else
             {
                 // Has more space after the end of the code region.
+                // 1 << 39, 大约为 512 GB,  - 130 MB ~= 511.8G
                 mapBaseAddress = CodeRegionEnd;
                 mapAvailableSize = addrSpaceEnd - CodeRegionEnd;
             }
 
             ulong mapTotalSize = aliasRegion.Size + heapRegion.Size + stackRegion.Size + tlsIoRegion.Size;
 
+            // 512G - 130MB - 136 G ~= 375.87 G
             ulong aslrMaxOffset = mapAvailableSize - mapTotalSize;
 
             _aslrEnabled = aslrEnabled;
@@ -279,6 +282,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
 
             if (aslrEnabled)
             {
+                // 0 - 0x5df7e00000, 大约 0 - 375G，且对齐到 2MB
                 aliasRegion.AslrOffset = GetRandomValue(0, aslrMaxOffset / RegionAlignment) * RegionAlignment;
                 heapRegion.AslrOffset = GetRandomValue(0, aslrMaxOffset / RegionAlignment) * RegionAlignment;
                 stackRegion.AslrOffset = GetRandomValue(0, aslrMaxOffset / RegionAlignment) * RegionAlignment;
@@ -296,10 +300,19 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
             tlsIoRegion.Start = mapBaseAddress + tlsIoRegion.AslrOffset;
             tlsIoRegion.End = tlsIoRegion.Start + tlsIoRegion.Size;
 
+            // if | lhs.start   -  lhs.end |
+            //              | rhs.start   -   rhs.end|
+            // 那么 rhs.start and rhs.end += lhs.Size, 就会
+            //   | lhs.start   -  lhs.end |
+            //                                       | rhs.start   -   rhs.end|
+            // 让两者错开，没有重叠部分
+
+            //  heap  alias
             SortRegion(ref aliasRegion, ref heapRegion, true);
 
             if (stackRegion.Size != 0)
-            {
+
+                // stack heap alias
                 stackRegion.Start = mapBaseAddress + stackRegion.AslrOffset;
                 stackRegion.End = stackRegion.Start + stackRegion.Size;
 
@@ -314,6 +327,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
 
             if (tlsIoRegion.Size != 0)
             {
+                // tls stack heap alias
                 tlsIoRegion.Start = mapBaseAddress + tlsIoRegion.AslrOffset;
                 tlsIoRegion.End = tlsIoRegion.Start + tlsIoRegion.Size;
 
@@ -331,6 +345,10 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
                 tlsIoRegion.End = stackAndTlsIoEnd;
             }
 
+            // 0x000000154e000000 - 0x000000254e000000
+            // 0x0000006556c00000 - 0x00000066d6c00000
+            // 0x00000049a0200000 - 0x0000004a20200000
+            // 0x0000006870800000 - 0x0000007870800000
             AliasRegionStart = aliasRegion.Start;
             AliasRegionEnd = aliasRegion.End;
             HeapRegionStart = heapRegion.Start;

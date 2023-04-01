@@ -37,10 +37,12 @@ namespace Ryujinx.Memory
         {
             if (flags.HasFlag(MemoryAllocationFlags.Mirrorable))
             {
+                // 共享内存的 handler CreateFileMapping
                 _sharedMemory = MemoryManagement.CreateSharedMemory(size, flags.HasFlag(MemoryAllocationFlags.Reserve));
 
                 if (!flags.HasFlag(MemoryAllocationFlags.NoMap))
                 {
+                    // MapViewOfFile 的返回值
                     _pointer = MemoryManagement.MapSharedMemory(_sharedMemory, size);
                 }
 

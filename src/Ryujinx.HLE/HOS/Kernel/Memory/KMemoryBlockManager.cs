@@ -36,6 +36,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
 
             ulong addrSpacePagesCount = (addrSpaceEnd - addrSpaceStart) / PageSize;
 
+            // 0 - 512 G,  134217728 个 page
             _blockTree.Add(new KMemoryBlock(
                 addrSpaceStart,
                 addrSpacePagesCount,

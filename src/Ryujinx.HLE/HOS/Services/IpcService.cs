@@ -23,6 +23,9 @@ namespace Ryujinx.HLE.HOS.Services
 
         public IpcService(ServerBase server = null)
         {
+            // ¶ÔÓÚIUserInterface
+            // Hipc[0], public ResultCode Initialize(ServiceCtx context)
+            // Hipc[1], public ResultCode GetService(ServiceCtx context)
             CmifCommands = typeof(IpcService).Assembly.GetTypes()
                 .Where(type => type == GetType())
                 .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public))
@@ -30,6 +33,8 @@ namespace Ryujinx.HLE.HOS.Services
                 .Select(command => (((CommandCmifAttribute)command).Id, methodInfo)))
                 .ToDictionary(command => command.Id, command => command.methodInfo);
 
+            // Tipc[0], public ResultCode Initialize(ServiceCtx context)
+            // Tipc[1], public ResultCode GetServiceTipc(ServiceCtx context)
             TipcCommands = typeof(IpcService).Assembly.GetTypes()
                 .Where(type => type == GetType())
                 .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public))

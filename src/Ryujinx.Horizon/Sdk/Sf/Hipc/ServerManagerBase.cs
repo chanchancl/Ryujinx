@@ -152,6 +152,7 @@ namespace Ryujinx.Horizon.Sdk.Sf.Hipc
                 {
                     ProcessWaitList();
 
+                    // 这里wait到的应该是 Server, 或者？
                     MultiWaitHolder selected = _multiWait.WaitAny();
 
                     if (selected == _requestStopEventHolder)
@@ -225,6 +226,7 @@ namespace Ryujinx.Horizon.Sdk.Sf.Hipc
 
             try
             {
+                // StaticObject是  ServiceObjectHolder(new LogService())
                 if (server.StaticObject != null)
                 {
                     return AcceptSession(server.PortHandle, server.StaticObject.Clone());
@@ -250,6 +252,7 @@ namespace Ryujinx.Horizon.Sdk.Sf.Hipc
 
             Result result;
 
+            // false
             if (_canDeferInvokeRequest)
             {
                 // If the request is deferred, we save the message on a temporary buffer to process it later.
@@ -286,6 +289,7 @@ namespace Ryujinx.Horizon.Sdk.Sf.Hipc
             {
                 if (!session.HasReceived)
                 {
+                    // 接收client发来的request， 理论上 client应该会直接把数据写到 server线程的 TLS上
                     result = ReceiveRequest(session, tlsMessage.Memory.Span);
 
                     if (result.IsFailure)

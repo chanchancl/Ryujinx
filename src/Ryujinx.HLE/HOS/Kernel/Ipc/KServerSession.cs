@@ -34,6 +34,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Ipc
                 }
                 else
                 {
+                    // 从 clientThread 的 TLS 读取数据
                     Address = thread.TlsAddress;
                     Size = 0x100;
                 }
@@ -243,10 +244,13 @@ namespace Ryujinx.HLE.HOS.Kernel.Ipc
 
             request.ServerProcess = serverProcess;
 
+            // 从clientThread读TLS地址
             Message clientMsg = new(request);
             Message serverMsg = new(serverThread, customCmdBuffAddr, customCmdBuffSize);
 
+            // 从 clientProcess.Memory 读取数据
             MessageHeader clientHeader = GetClientMessageHeader(clientProcess, clientMsg);
+            // 从 serverProcess.Memory tls 读取 预置数据 ReplyAndReceive 前放的数据
             MessageHeader serverHeader = GetServerMessageHeader(serverMsg);
 
             Result serverResult = KernelResult.NotFound;
@@ -317,6 +321,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Ipc
                 serverHeader.ReceiveListType,
                 serverHeader.ReceiveListOffset);
 
+            // Type 在这里
             serverProcess.CpuMemory.Write(serverMsg.Address + 0, clientHeader.Word0);
             serverProcess.CpuMemory.Write(serverMsg.Address + 4, clientHeader.Word1);
 

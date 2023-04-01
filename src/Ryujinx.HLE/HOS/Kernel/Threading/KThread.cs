@@ -140,6 +140,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 throw new ArgumentException($"Invalid thread type \"{type}\".");
             }
 
+            // 更喜欢的核心
             PreferredCore = cpuCore;
             AffinityMask |= 1UL << cpuCore;
 
@@ -157,6 +158,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
             _entrypoint = entrypoint;
             _customThreadStart = customThreadStart;
 
+            // 用户线程，分配 TLS 线程本地存储空间
             if (type == ThreadType.User)
             {
                 if (owner.AllocateThreadLocalStorage(out _tlsAddress) != Result.Success)
@@ -207,6 +209,8 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
 
             ThreadUid = KernelContext.NewThreadUid();
 
+            // 如果有 CustomThreadStart，则线程名为 HLE.OsThread.xxx
+            // 否则就是 GuestThread, HLE.GuestThread.xxx
             HostThread.Name = customThreadStart != null ? $"HLE.OsThread.{ThreadUid}" : $"HLE.GuestThread.{ThreadUid}";
 
             _hasBeenInitialized = true;
@@ -879,6 +883,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 }
                 else
                 {
+                    // 通过 _schedulerWait.Set() 唤醒线程
                     SetNewSchedFlags(ThreadSchedState.Running);
                 }
             }

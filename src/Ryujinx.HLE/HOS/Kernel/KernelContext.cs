@@ -66,31 +66,50 @@ namespace Ryujinx.HLE.HOS.Kernel
 
             Running = true;
 
+            // 用来处理 syscall，在CPU执行到 syscall时，读取寄存器的值，执行模拟操作系统对应的功能，然后再将结果写入寄存器
             Syscall = new Syscall(this);
 
             SyscallHandler = new SyscallHandler(this);
 
+            // 缺省值Limit，每个 Process 可以自己制定
+            // ResourceLimit的主要作用就是可以为每种资源设置上限
+            // 当申请者所申请的额度，大于所剩资源时，会阻塞执行，有一个默认的timeout，大概10s
             ResourceLimit = new KResourceLimit(this);
 
             KernelInit.InitializeResourceLimit(ResourceLimit, memorySize);
 
+            // 将内存分成若干块，并管理是否被占用，不实际分配内存
             MemoryManager = new KMemoryManager(memorySize, memoryArrange);
 
+            // 计数器，大的容量是 20000, 小的是 10000
             LargeMemoryBlockSlabManager = new KMemoryBlockSlabManager(KernelConstants.MemoryBlockAllocatorSize * 2);
             SmallMemoryBlockSlabManager = new KMemoryBlockSlabManager(KernelConstants.MemoryBlockAllocatorSize);
 
+            // 将 0x3de000 分为若干个 0x1000 块，插入链表，可以获取一个item，和归还一个item
+            // UserSlabHeapBase     0x800e5000
+            // UserSlabHeapItemSize 0x1000, 4K
+            // UserSlabHeapSize     0x3de000
             UserSlabHeapPages = new KSlabHeap(
                 KernelConstants.UserSlabHeapBase,
                 KernelConstants.UserSlabHeapItemSize,
                 KernelConstants.UserSlabHeapSize);
 
+            // VirtualAlloc
+            // 0xe5000
+            // 0x3de000
             CommitMemory(KernelConstants.UserSlabHeapBase - DramMemoryMap.DramBase, KernelConstants.UserSlabHeapSize);
 
+            // 临界区
             CriticalSection = new KCriticalSection(this);
+            // 调度器
             Schedulers = new KScheduler[KScheduler.CpuCoresCount];
+            // 优先队列
             PriorityQueue = new KPriorityQueue();
+            // 基于时间的执行器
             TimeManager = new KTimeManager(this);
+            // 可以同步一切支持内核同步的对象， KSynchronizationObject
             Synchronization = new KSynchronization(this);
+            // 貌似是有点问题的计数器，利用8个int，总共32个字节，管理256个ID
             ContextIdManager = new KContextIdManager();
 
             for (int core = 0; core < KScheduler.CpuCoresCount; core++)

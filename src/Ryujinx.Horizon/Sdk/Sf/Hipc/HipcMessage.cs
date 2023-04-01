@@ -90,6 +90,7 @@ namespace Ryujinx.Horizon.Sdk.Sf.Hipc
             int initialLength = destination.Length;
             bool hasSpecialHeader = meta.SendPid || meta.CopyHandlesCount != 0 || meta.MoveHandlesCount != 0;
 
+            // 将 destination 转换为一个Header，并且赋值
             MemoryMarshal.Cast<byte, Header>(destination)[0] = new Header
             {
                 Type = (CommandType)meta.Type,

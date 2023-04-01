@@ -13,6 +13,7 @@ namespace Ryujinx.Horizon.Sdk.Sm
 
         public Result Initialize()
         {
+            // KPortClient
             Result result = HorizonStatic.Syscall.ConnectToNamedPort(out int portHandle, SmName);
 
             while (result == KernelResult.NotFound)

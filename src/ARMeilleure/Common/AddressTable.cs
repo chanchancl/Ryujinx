@@ -157,6 +157,8 @@ namespace ARMeilleure.Common
         {
             TEntry** page = GetRootPage();
 
+            // 将 64 位地址，按照 Level分成若干级数组
+            // [0-2^17][2^8][2^8][2^8][2^5]
             for (int i = 0; i < Levels.Length - 1; i++)
             {
                 ref Level level = ref Levels[i];
@@ -166,6 +168,8 @@ namespace ARMeilleure.Common
                 {
                     ref Level nextLevel = ref Levels[i + 1];
 
+                    // i 的范围是 0-4,只有最后一级可能达成条件，并设置 leaf :true，
+                    // 设置的值是，  SlowDispatchStub
                     nextPage = i == Levels.Length - 2 ?
                         (TEntry*)Allocate(1 << nextLevel.Length, Fill, leaf: true) :
                         (TEntry*)Allocate(1 << nextLevel.Length, IntPtr.Zero, leaf: false);

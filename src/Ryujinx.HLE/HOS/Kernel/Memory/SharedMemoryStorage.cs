@@ -14,6 +14,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
             _pageList = pageList;
             _size = pageList.GetPagesCount() * KPageTableBase.PageSize;
 
+            // 初始状态下 pageList 中只有一个大node
             foreach (KPageNode pageNode in pageList)
             {
                 ulong address = pageNode.Address - DramMemoryMap.DramBase;

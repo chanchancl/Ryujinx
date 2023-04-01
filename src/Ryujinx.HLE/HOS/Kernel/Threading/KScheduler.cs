@@ -48,6 +48,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
             _idleInterruptEvent = new AutoResetEvent(false);
             _idleInterruptEventLock = new object();
 
+            // 每个核心都有一个 Idle Thread
             KThread idleThread = CreateIdleThread(context, coreId);
 
             _currentThread = idleThread;
@@ -80,6 +81,8 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
 
         private static ulong SelectThreadsImpl(KernelContext context)
         {
+            // 看起来需要某个线程向 context 发起 ThreadReselectionRequest
+            // 这里将其重置
             context.ThreadReselectionRequested = false;
 
             ulong scheduledCoresMask = 0UL;
@@ -88,17 +91,20 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
             {
                 KThread thread = context.PriorityQueue.ScheduledThreadsFirstOrDefault(core);
 
+                // 线程所属的进程有pined的线程，但不是thread，悲
                 if (thread != null &&
                     thread.Owner != null &&
                     thread.Owner.PinnedThreads[core] != null &&
                     thread.Owner.PinnedThreads[core] != thread)
                 {
+                    //
                     KThread candidate = thread.Owner.PinnedThreads[core];
 
                     if (candidate.KernelWaitersCount == 0 && !KProcess.IsExceptionUserThread(candidate))
                     {
                         if (candidate.SchedFlags == ThreadSchedState.Running)
                         {
+                            // 说明 process pined 优先级高于 context 中优先队列的线程
                             thread = candidate;
                         }
                         else
@@ -108,6 +114,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                     }
                 }
 
+                // 切换到线程 thread，如果线程确实发生了切换，则 0xxxx1111 最低4位记录哪个核切换了
                 scheduledCoresMask |= context.Schedulers[core].SelectThread(thread);
             }
 
@@ -128,14 +135,21 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
 
                 // Select candidate threads that could run on this core.
                 // Give preference to threads that are not yet selected.
+                // Suggested队列放的都是在别的core上的thread
                 foreach (KThread suggested in context.PriorityQueue.SuggestedThreads(core))
                 {
+                    // 未激活 或者 没被所属的调度器调度，则将其偷过来
                     if (suggested.ActiveCore < 0 || suggested != context.Schedulers[suggested.ActiveCore]._state.SelectedThread)
                     {
                         dst = suggested;
                         break;
                     }
 
+                    // 存的顺序应该是
+                    // 0 : 1 2 3 随机
+                    // 1 : 0 1 2 随机
+                    // 2 : 0 1 3 随机
+                    // 3 : 0 1 2 随机
                     _srcCoresHighestPrioThreads[srcCoresHighestPrioThreadsCount++] = suggested.ActiveCore;
                 }
 
@@ -146,6 +160,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                     // threads, we should skip load balancing entirely.
                     if (dst.DynamicPriority >= 2)
                     {
+                        // 将 dst 转移到核心 core，并记发生了切换的核心
                         context.PriorityQueue.TransferToCore(dst.DynamicPriority, core, dst);
 
                         scheduledCoresMask |= context.Schedulers[core].SelectThread(dst);
@@ -232,6 +247,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
         {
             while (scheduledCoresMask != 0)
             {
+                // 0101 表示core 0， 2 发生了线程切换
                 int coreToSignal = BitOperations.TrailingZeroCount(scheduledCoresMask);
 
                 KThread threadToSignal = context.Schedulers[coreToSignal]._currentThread;
@@ -239,12 +255,14 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 // Request the thread running on that core to stop and reschedule, if we have one.
                 if (threadToSignal != context.Schedulers[coreToSignal]._idleThread)
                 {
+                    // 向模拟CPU发出中断
                     threadToSignal.Context.RequestInterrupt();
                 }
 
                 // If the core is idle, ensure that the idle thread is awaken.
                 context.Schedulers[coreToSignal]._idleInterruptEvent.Set();
 
+                // 清除标志位
                 scheduledCoresMask &= ~(1UL << coreToSignal);
             }
         }
@@ -259,10 +277,12 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
 
                 if (_idleThread != nextThread)
                 {
+                    // 可以切换到 nextThread
                     _idleThread.SchedulerWaitEvent.Reset();
                     WaitHandle.SignalAndWait(nextThread.SchedulerWaitEvent, _idleThread.SchedulerWaitEvent);
                 }
 
+                // idle线程陷入睡眠，等待下次调度唤醒
                 _idleInterruptEvent.WaitOne();
             }
 
@@ -400,6 +420,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
             _currentThread = nextThread;
         }
 
+        // 抢占线程
         public static void PreemptionThreadLoop(KernelContext context)
         {
             while (context.Running)
@@ -408,6 +429,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
 
                 for (int core = 0; core < CpuCoresCount; core++)
                 {
+                    // { 59, 59, 59, 63 },
                     RotateScheduledQueue(context, core, _preemptionPriorities[core]);
                 }
 

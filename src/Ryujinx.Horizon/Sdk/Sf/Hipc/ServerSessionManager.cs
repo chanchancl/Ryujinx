@@ -223,6 +223,7 @@ namespace Ryujinx.Horizon.Sdk.Sf.Hipc
 
             while (true)
             {
+                // 如果有 pointerBuffer，就从 ReceiveList 去读
                 if (pointerBuffer.Address != 0)
                 {
                     HipcMessageData messageData = HipcMessage.WriteMessage(message, new HipcMetadata
@@ -241,6 +242,7 @@ namespace Ryujinx.Horizon.Sdk.Sf.Hipc
                     };
                 }
 
+                // 使用 ReplyAndReceive 去Receive
                 Result result = Api.Receive(out ReceiveResult recvResult, session.Handle, message);
 
                 if (result.IsFailure)

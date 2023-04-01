@@ -144,6 +144,29 @@ namespace ARMeilleure.Translation
         {
             var context = new EmitterContext();
 
+            // 简单来说就是，先用 PC 查表FunctionTable，如果查的到，就直接调用表里的函数
+            // 否则就用 NativeInterface.GetFunctionAddress(PC), 获得hostAddress并调用函数
+            // 所以在生成 DispatchStub 之前，就应该把 FunctionTable 填好
+
+            // DispatchStub(nativeContext)
+            //   masked = nativeContext->Pc & (translator.FunctionTable.Mask)
+            //   if (masked)
+            //     goto fallback
+            //   // There is no loop here actually, they will generate code based current FunctionTable.Levels
+            //   for ( i = 0; i < translator.FunctionTable.Levels.Length; i++)
+            //     level = translator.FunctionTable.Levels[i];
+            //     mask = level.Mask >> level.Index
+            //     index = (nativeContext->Pc >> level.Index) & mask
+            //     if ( i < levels.Length -1) // i is not last element
+            //       page = page + (index << 3)
+            //       if (!page)
+            //         goto fallback
+            //   hostAddress = *((uint64*)page + index << 3)
+            //   hostAddress(nativeContext)
+            // fallback:
+            //   hostAddress = NativeInterface.GetFunctionAddress(nativeContext->Pc)
+            //   hostAddress(nativeContext)
+
             Operand lblFallback = Label();
             Operand lblEnd = Label();
 
@@ -256,11 +279,28 @@ namespace ARMeilleure.Translation
             Operand beginLbl = Label();
             Operand endLbl = Label();
 
+            // 简而言之就是编译一个下面这样的函数，并执行，其中 guestAddress
+            // 是 KProcess的 mainKThread调用的 KThread.Execute(KThread.Context, _entrypoint)
+            // Dispatch(contextNativePtr, guestAddress)
+            // begin:
+            //  nativeContextPtr->Pc =  guestAddress
+            //  guestAddress = DispatchStub(contextNativePtr)
+            //  if (!guestAddress)
+            //    goto end
+            //  if (!nativeContextPtr->Running)
+            //    goto end
+            //  goto begin
+            // end:
+            //  return
+
+
             Operand nativeContext = context.LoadArgument(OperandType.I64, 0);
             Operand guestAddress = context.Copy(
                 context.AllocateLocal(OperandType.I64),
                 context.LoadArgument(OperandType.I64, 1));
 
+            // nativeContext->Running
+            // nativeContext->Pc
             Operand runningAddress = context.Add(nativeContext, Const((ulong)NativeContext.GetRunningOffset()));
             Operand dispatchAddress = context.Add(nativeContext, Const((ulong)NativeContext.GetDispatchAddressOffset()));
 

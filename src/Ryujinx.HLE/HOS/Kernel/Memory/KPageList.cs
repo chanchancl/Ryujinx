@@ -19,6 +19,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
             {
                 if (Nodes.Last != null)
                 {
+                    // ºÏ²¢ range
                     KPageNode lastNode = Nodes.Last.Value;
 
                     if (lastNode.Address + lastNode.PagesCount * KPageTableBase.PageSize == address)

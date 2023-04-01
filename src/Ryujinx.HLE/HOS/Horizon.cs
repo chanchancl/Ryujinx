@@ -134,6 +134,11 @@ namespace Ryujinx.HLE.HOS
             // region used that is used is Application, so we can use the other ones for anything.
             KMemoryRegionManager region = KernelContext.MemoryManager.MemoryRegions[(int)MemoryRegion.NvServices];
 
+            /*  nvServicesPool
+            *   | Address = 2352 - 41.78125 = 2310.21875 MiB     , 0x00000000_9063_8000
+            *   | Size    = 42784 KiB                            , 0x00000000_029c_8000
+            */
+
             ulong hidPa = region.Address;
             ulong fontPa = region.Address + HidSize;
             ulong iirsPa = region.Address + HidSize + FontSize;
@@ -146,6 +151,7 @@ namespace Ryujinx.HLE.HOS
             KPageList timePageList = new();
             KPageList appletCaptureBufferPageList = new();
 
+            // 分成以4K page 为单位，添加内存区间
             hidPageList.AddRange(hidPa, HidSize / KPageTableBase.PageSize);
             fontPageList.AddRange(fontPa, FontSize / KPageTableBase.PageSize);
             iirsPageList.AddRange(iirsPa, IirsSize / KPageTableBase.PageSize);

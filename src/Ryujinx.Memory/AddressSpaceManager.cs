@@ -59,6 +59,7 @@ namespace Ryujinx.Memory
 
             while (size != 0)
             {
+                // 每次映射一个 page
                 _pageTable.Map(va, (nuint)(ulong)_backingMemory.GetPointer(pa, PageSize));
 
                 va += PageSize;

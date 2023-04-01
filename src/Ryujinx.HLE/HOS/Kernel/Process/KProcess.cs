@@ -428,6 +428,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Process
         {
             pageInfo = default;
 
+            // 每个Page大小为 0x1000, 4K
             if (!KernelContext.UserSlabHeapPages.TryGetItem(out ulong tlsPagePa))
             {
                 return KernelResult.OutOfMemory;

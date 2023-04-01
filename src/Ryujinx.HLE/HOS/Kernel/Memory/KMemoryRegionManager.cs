@@ -18,7 +18,9 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
             Address = address;
             Size = size;
 
+            // 每个page的引用计数, 总共有 size / PageSize 个page
             _pageReferenceCounts = new ushort[size / KPageTableBase.PageSize];
+
 
             _pageHeap = new KPageHeap(address, size);
             _pageHeap.Free(address, size / KPageTableBase.PageSize);
@@ -40,6 +42,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
 
                 if (result == Result.Success)
                 {
+                    // 增加引用计数
                     foreach (var node in pageList)
                     {
                         IncrementPagesReferenceCount(node.Address, node.PagesCount);
@@ -84,10 +87,20 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
 
             for (int index = heapIndex; index >= 0; index--)
             {
+                // 从 blocks[index] 每次分配一个Block所包含的Page数量,BlockPagesCount -> BPC
+                // BPC[0] =   1
+                // BPC[1] =  16
+                // BPC[2] = 512
+                // BPC[3] =1024
+                // 比如 pagesCount 为 35
                 ulong pagesPerAlloc = KPageHeap.GetBlockPagesCount(index);
 
+                // 35 - 16 * 2 = 3,  分配2个 BPC[1]
+                // 然后 index--
+                // 再分配3个 BPC[0]
                 while (pagesCount >= pagesPerAlloc)
                 {
+                    // allocatedBlock 是被分配内存的首地址
                     ulong allocatedBlock = _pageHeap.AllocateBlock(index, random);
 
                     if (allocatedBlock == 0)
@@ -109,6 +122,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
                 }
             }
 
+            // 找遍所有blocks还是不能全部都分配完，则把已分配的内存释放，并返回 OOM
             if (pagesCount != 0)
             {
                 FreePages(pageList);

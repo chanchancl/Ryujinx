@@ -30,6 +30,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Ipc
 
         public Result SendSyncRequest(ulong customCmdBuffAddr = 0, ulong customCmdBuffSize = 0)
         {
+            // currentThread ÊÇclientThread
             KThread currentThread = KernelStatic.GetCurrentThread();
 
             KSessionRequest request = new(currentThread, customCmdBuffAddr, customCmdBuffSize);

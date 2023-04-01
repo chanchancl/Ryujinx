@@ -29,9 +29,11 @@ namespace Ryujinx.HLE.HOS.Services.Sm
 
         static IUserInterface()
         {
+            // 选择所有被 [Service("")] 修饰的类，并组成
+            // dauth: Ryujinx.HLE.HOS.Services.Account.Dauth.IService 这样的字典
             _services = typeof(IUserInterface).Assembly.GetTypes()
                 .SelectMany(type => type.GetCustomAttributes(typeof(ServiceAttribute), true)
-                .Select(service => (((ServiceAttribute)service).Name, type)))
+                                    .Select(service => (((ServiceAttribute)service).Name, type)))
                 .ToDictionary(service => service.Name, service => service.type);
         }
 

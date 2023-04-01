@@ -602,6 +602,8 @@ namespace Ryujinx.HLE.HOS.Kernel.SupervisorCall
 
                 while ((result = _context.Synchronization.WaitFor(syncObjs, timeout, out handleIndex)) == Result.Success)
                 {
+                    // 如果触发事件的KServerSession，额外对其调用 Receive，且在NotFound时，继续等待，否则就退出
+                    // 如果不是KServerSession触发的事件，比如KServerPort
                     KServerSession session = currentProcess.HandleTable.GetObject<KServerSession>(handles[handleIndex]);
 
                     if (session == null)
@@ -816,6 +818,7 @@ namespace Ryujinx.HLE.HOS.Kernel.SupervisorCall
                 return result;
             }
 
+            // 用于通过 name 找到该 KPortClient，然后再连接到 KPortServer
             result = port.ClientPort.SetName(name);
 
             if (result != Result.Success)

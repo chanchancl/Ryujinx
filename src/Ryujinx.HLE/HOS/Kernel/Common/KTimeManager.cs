@@ -63,6 +63,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Common
 
                 if (timeout < NanosecondsPerMillisecond)
                 {
+                    // 时间小于1ms，允许自旋锁
                     Interlocked.Exchange(ref _enforceWakeupFromSpinWait, 1);
                 }
             }
@@ -86,6 +87,9 @@ namespace Ryujinx.HLE.HOS.Kernel.Common
 
         private void WaitAndCheckScheduledObjects()
         {
+            // spinWait，提供快速的等待机制，用于短时间等待
+            // 如果时间过长，则会消耗过量的CPU
+            SpinWait spinWait = new SpinWait();
             WaitingObject next;
 
             using (_waitEvent = PreciseSleepHelper.CreateEvent())
@@ -94,6 +98,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Common
                 {
                     lock (_context.CriticalSection.Lock)
                     {
+                        // 不允许使用 spinwait
                         Interlocked.Exchange(ref _enforceWakeupFromSpinWait, 0);
 
                         next = GetNextWaitingObject();
@@ -103,6 +108,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Common
                     {
                         long timePoint = PerformanceCounter.ElapsedTicks;
 
+                        // 下一个调度对象还没到时间
                         if (next.TimePoint > timePoint)
                         {
                             if (!_waitEvent.SleepUntil(next.TimePoint))
@@ -111,14 +117,17 @@ namespace Ryujinx.HLE.HOS.Kernel.Common
                             }
                         }
 
+                        // 最近的object到期了
                         bool timeUp = PerformanceCounter.ElapsedTicks >= next.TimePoint;
 
                         if (timeUp)
                         {
+                            // 不需要调度别的线程，只加一下锁
                             lock (_context.CriticalSection.Lock)
                             {
                                 if (_waitingObjects.Remove(next))
                                 {
+                                    // 调用回调函数
                                     next.Object.TimeUp();
                                 }
                             }

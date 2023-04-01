@@ -130,6 +130,8 @@ namespace Ryujinx.Memory
 
         public static IntPtr MapSharedMemory(IntPtr handle)
         {
+            // FILE_MAP_READ (0x0004)：表示映射视图的访问模式为只读。在这种模式下，进程只能读取映射视图中的数据，而不能修改或删除映射视图中的数据。
+            // FILE_MAP_WRITE(0x0002)：表示映射视图的访问模式为可写。在这种模式下，进程可以写入映射视图中的数据，但不能读取或删除映射视图中的数据。
             IntPtr ptr = WindowsApi.MapViewOfFile(handle, 4 | 2, 0, 0, IntPtr.Zero);
 
             if (ptr == IntPtr.Zero)

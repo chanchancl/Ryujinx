@@ -1,3 +1,4 @@
+using Ryujinx.Common.Logging;
 using Ryujinx.HLE.HOS.Kernel.Common;
 using Ryujinx.Horizon.Common;
 using System;
@@ -65,6 +66,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
 
                 for (int index = 0; index < syncObjs.Length; index++)
                 {
+                    // 到期时，可以通知所有在syncObjs[index]上等待的线程
                     syncNodes[index] = syncObjs[index].AddWaitingThread(currentThread);
                 }
 
@@ -72,14 +74,22 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 currentThread.SignaledObj = null;
                 currentThread.ObjSyncResult = result;
 
+                // Reset _schedulerWaitEvent 这样CriticalSection.Leave()会去等待
                 currentThread.Reschedule(ThreadSchedState.Paused);
-
+                
                 if (timeout > 0)
                 {
+                    // 当timeout到期的时候，调用 currentThread.Timeup
                     _context.TimeManager.ScheduleFutureInvocation(currentThread, timeout);
                 }
 
+                // 等待 currentThread.SchedulerWaitEvent.WaitOne();
+                // 唤醒流程是，最多经过 timeout 时间后，发生如下的调用链
+                //  KThread.TimeUp -> ReleaseAndResume -> SetNewSchedFlags -> AdjustScheduling -> _schedulerWaitEvent.Set();
+                //      
                 _context.CriticalSection.Leave();
+
+                // 到期，或者被实际唤醒后
 
                 currentThread.WaitingSync = false;
 
@@ -107,6 +117,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 ArrayPool<LinkedListNode<KThread>>.Shared.Return(syncNodesArray);
             }
 
+            // 这里就不会等待了，因为 _schedulerWaitEvent 没有被Reset
             _context.CriticalSection.Leave();
 
             return result;
@@ -118,6 +129,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
 
             if (syncObj.IsSignaled())
             {
+                // 唤醒等待syncObj的所有线程
                 LinkedListNode<KThread> node = syncObj.WaitingThreads.First;
 
                 while (node != null)
@@ -129,6 +141,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                         thread.SignaledObj = syncObj;
                         thread.ObjSyncResult = Result.Success;
 
+                        // 通过 _schedulerWaitEvent.Set() 发送信号， 
                         thread.Reschedule(ThreadSchedState.Running);
                     }
 

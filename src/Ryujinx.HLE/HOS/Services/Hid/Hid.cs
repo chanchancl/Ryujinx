@@ -49,6 +49,7 @@ namespace Ryujinx.HLE.HOS.Services.Hid
             CheckTypeSizeOrThrow<SharedMemory>(Horizon.HidSize);
         }
 
+        // Human Input Device?
         internal Hid(in Switch device, SharedMemoryStorage storage)
         {
             _device = device;

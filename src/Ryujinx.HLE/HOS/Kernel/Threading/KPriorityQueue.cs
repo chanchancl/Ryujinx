@@ -168,21 +168,27 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 return;
             }
 
+            // ActiveCore 指当前调度该线程的core吗
             thread.ActiveCore = dstCore;
 
+            // thread 原本属于某一个 core
             if (srcCore >= 0)
             {
+                // 从原core的 scheduled 队列中删掉
                 Unschedule(prio, srcCore, thread);
             }
 
             if (dstCore >= 0)
             {
+                // 从 dstCore 的suggest队列中删除
                 Unsuggest(prio, dstCore, thread);
+                // 添加到 dstCore 的scheduled队列
                 Schedule(prio, dstCore, thread);
             }
 
             if (srcCore >= 0)
             {
+                // 添加到原core 的suggest队列
                 Suggest(prio, srcCore, thread);
             }
         }
@@ -194,8 +200,10 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 return;
             }
 
+            // 加入队列，并且记下自己所在的节点，方便删除
             thread.SiblingsPerCore[core] = SuggestedQueue(prio, core).AddFirst(thread);
 
+            // 设置 prio 位
             _suggestedPrioritiesPerCore[core] |= 1L << prio;
         }
 
@@ -206,10 +214,12 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 return;
             }
 
+            // 从列表中删除 thread
             LinkedList<KThread> queue = SuggestedQueue(prio, core);
 
             queue.Remove(thread.SiblingsPerCore[core]);
 
+            //优先级为 prio 的队列已经空了， 清空 prio 位
             if (queue.First == null)
             {
                 _suggestedPrioritiesPerCore[core] &= ~(1L << prio);
@@ -223,6 +233,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 return;
             }
 
+            // 添加到队尾
             thread.SiblingsPerCore[core] = ScheduledQueue(prio, core).AddLast(thread);
 
             _scheduledPrioritiesPerCore[core] |= 1L << prio;
@@ -235,6 +246,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
                 return;
             }
 
+            // 添加到队首
             thread.SiblingsPerCore[core] = ScheduledQueue(prio, core).AddFirst(thread);
 
             _scheduledPrioritiesPerCore[core] |= 1L << prio;
@@ -249,6 +261,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
 
             LinkedList<KThread> queue = ScheduledQueue(prio, core);
 
+            // 将其移动到队伍尾部
             queue.Remove(thread.SiblingsPerCore[core]);
 
             thread.SiblingsPerCore[core] = queue.AddLast(thread);
@@ -258,15 +271,18 @@ namespace Ryujinx.HLE.HOS.Kernel.Threading
 
         public void Unschedule(int prio, int core, KThread thread)
         {
+            // 确认合法
             if (prio >= KScheduler.PrioritiesCount)
             {
                 return;
             }
 
+            // 从scheduled 队列中删除 thread
             LinkedList<KThread> queue = ScheduledQueue(prio, core);
 
             queue.Remove(thread.SiblingsPerCore[core]);
 
+            // 优先级为 prio 的队列空了，重置 prio 位
             if (queue.First == null)
             {
                 _scheduledPrioritiesPerCore[core] &= ~(1L << prio);

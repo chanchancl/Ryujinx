@@ -98,6 +98,12 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
         {
             _usedDepths = GetRequiredDepth(size);
 
+            // block[0]...
+            // _bitStorages[0] = offset 0x3426, size 0x0001
+            //             [1] = offset 0x3422, size 0x0004
+            //             [2] = offset 0x3354, size 0x00ce
+            //             [3] = offset 0     , size 0x3354, then 0x3354 * 8 * 4K = 0x19aa0000 >= 3252MB,
+            // 从上至下，每一个bit，都代表这一块内存是否被占用，只有当子节点全是0是，当前节点才能是0
             for (int depth = HighestDepthIndex; depth >= 0; depth--)
             {
                 _bitStorages[depth] = storage;
@@ -132,13 +138,17 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
             {
                 do
                 {
+                    // depth 从 0 -> 3, size从小到大
                     ulong v = _bitStorages[depth][(int)offset];
+                    // 111...111   初始时，全部都是1，表明未分配
 
+                    // if v == 0 说明没有block全都被分配出去了，没有free的
                     if (v == 0)
                     {
                         return ulong.MaxValue;
                     }
 
+                    //      offset * UInt64BitsSize 表示树的下一个节点， TrailingZeroCount 表示第几个Block是空的
                     offset = offset * UInt64BitSize + (ulong)BitOperations.TrailingZeroCount(v);
                 }
                 while (++depth < _usedDepths);
@@ -233,7 +243,7 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
 
                 _bitStorages[depth][ind] = v | mask;
 
-                if (v != 0)
+                if (v != 0)  // 说明这个块之前就已经分配过别的节点了，不需要通知自己的父节点，可以直接break，否则要把父节点也标记了
                 {
                     break;
                 }
@@ -286,6 +296,12 @@ namespace Ryujinx.HLE.HOS.Kernel.Memory
         {
             int overheadBits = 0;
 
+            // regionSize = 0xcd520
+            // 64 ** 4 >= regionSize
+            // 遍历 [3, 2, 1 0]
+            // RegionSize依次为变为, 0x3355, 0xce, 0x4, 0x1
+            // sum = 0x3428,  * sizeof(ulong) = 0x1a140
+            // 比如说第一层 有64个子节点，为了表明他们的状态，需要 64个bit才行，那么就需要 8个 ulong才行，依次类推，总共需要 0x1a140个ulong
             for (int depth = GetRequiredDepth(regionSize) - 1; depth >= 0; depth--)
             {
                 regionSize = BitUtils.DivRoundUp<ulong>(regionSize, UInt64BitSize);

@@ -146,6 +146,9 @@ namespace Ryujinx.Horizon.Sdk.OsTypes.Impl
         {
             int count = 0;
 
+            // 这里的 _multiWaits 可能是 Server 或者 Session
+            // 其中，Server是通过Sm: 的IPC调用注册的，注册后返回的handler存储在server里
+
             foreach (MultiWaitHolderBase holder in _multiWaits)
             {
                 int handle = holder.Handle;
